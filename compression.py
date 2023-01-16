@@ -1,5 +1,6 @@
 from os import sys, path
 import argparse
+import pickle
 
 class Node ():
 
@@ -59,21 +60,31 @@ def label (node, current, encoding):
         label(node.right, current, encoding)
         current = current[:-1]
 
-parser = argparse.ArgumentParser()
-parser.add_argument('filename')
-parser.add_argument('--compress', dest='compress', action='store_true', default=True, required=False) 
-parser.add_argument('--decompress', dest='decompress', action='store_true', default=False, required=False)
-arguments = parser.parse_args()
-
-if arguments.compress and arguments.decompress:
-    raise Exception('File cannot be simultaneously compressed and decompressed')
-elif arguments.compress:
-    compress(arguments.filename)
-else:
-    decompress(arguments.filename)
-
 def decompress (filename):
-    pass
+    with open(filename, 'rb') as f:
+        length = int.from_bytes(f.read(4), byteorder='big')
+        encoding = pickle.loads(f.read(length))
+
+        s = ''
+
+        values = bin(int.from_bytes(f.read(), byteorder='big'))
+        current = encoding
+        i = 0
+        while i < len(values[2:]):
+            if (current.left is None) and (current.right is None):
+                s += current.character
+                current = encoding
+                continue
+            elif values[2:][i] == '0':
+                current = current.left
+            else:
+                current = current.right
+
+            i += 1
+
+        print(s)
+
+        
 
 def compress (filename):
     with open(filename, 'r') as f:
@@ -100,11 +111,26 @@ def compress (filename):
 
         encoding = {}
 
-         label(q[0], '', encoding)
+        label(q[0], '', encoding)
 
-        with open('test.comp', 'wb') as comp:
+        with open(f'{filename.split(".")[0]}.comp', 'wb') as comp:
             b = ''
             for ch in data:
                 b += encoding[ch]
+            
+            serialized_encoding = pickle.dumps(q[0])
 
-            comp.write(int(b, 2).to_bytes((len(b) + 7) // 8, byteorder='big'))                         
+            comp.write(len(serialized_encoding).to_bytes(4, byteorder='big'))
+            comp.write(serialized_encoding)
+            comp.write(int(b, 2).to_bytes((len(b) + 7) // 8, byteorder='big'))
+
+parser = argparse.ArgumentParser()
+parser.add_argument('filename')
+parser.add_argument('--compress', dest='compress', action='store_true', default=True, required=False) 
+parser.add_argument('--decompress', dest='decompress', action='store_true', default=False, required=False)
+arguments = parser.parse_args()
+
+if arguments.decompress:
+    decompress(arguments.filename)
+else:
+    compress(arguments.filename)
