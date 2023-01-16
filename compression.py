@@ -1,4 +1,5 @@
 from os import sys, path
+import argparse
 
 class Node ():
 
@@ -58,36 +59,52 @@ def label (node, current, encoding):
         label(node.right, current, encoding)
         current = current[:-1]
 
+parser = argparse.ArgumentParser()
+parser.add_argument('filename')
+parser.add_argument('--compress', dest='compress', action='store_true', default=True, required=False) 
+parser.add_argument('--decompress', dest='decompress', action='store_true', default=False, required=False)
+arguments = parser.parse_args()
 
-with open(sys.argv[1], 'r') as f:
-    freq = {}
+if arguments.compress and arguments.decompress:
+    raise Exception('File cannot be simultaneously compressed and decompressed')
+elif arguments.compress:
+    compress(arguments.filename)
+else:
+    decompress(arguments.filename)
 
-    for ch in (data := f.read()):
-        if ch not in freq:
-            freq[ch] = 1
-        else:
-            freq[ch] += 1
+def decompress (filename):
+    pass
 
-    q = []
+def compress (filename):
+    with open(filename, 'r') as f:
+        freq = {}
 
-    for (character, frequency) in freq.items():
-        q.append(Node(frequency, character))
+        for ch in (data := f.read()):
+            if ch not in freq:
+                freq[ch] = 1
+            else:
+                freq[ch] += 1
 
-    q = sorted(q)
+        q = []
 
-    while len(q) > 1:
-        n = q[0] + q[1]
-        q = q[2:]
-        q.append(n)
+        for (character, frequency) in freq.items():
+            q.append(Node(frequency, character))
+
         q = sorted(q)
 
-    encoding = {}
+        while len(q) > 1:
+            n = q[0] + q[1]
+            q = q[2:]
+            q.append(n)
+            q = sorted(q)
 
-    label(q[0], '', encoding)
+        encoding = {}
 
-    with open('test.comp', 'wb') as comp:
-        b = ''
-        for ch in data:
-            b += encoding[ch]
+         label(q[0], '', encoding)
 
-        comp.write(int(b, 2).to_bytes((len(b) + 7) // 8, byteorder='big'))
+        with open('test.comp', 'wb') as comp:
+            b = ''
+            for ch in data:
+                b += encoding[ch]
+
+            comp.write(int(b, 2).to_bytes((len(b) + 7) // 8, byteorder='big'))                         
